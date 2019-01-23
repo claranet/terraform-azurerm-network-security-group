@@ -1,12 +1,14 @@
 resource "azurerm_resource_group" "nsg" {
+  count    = "${var.create_rg == "1" ? 1 : 0}"
   name     = "${var.resource_group_name}"
   location = "${var.location}"
+  tags     = "${var.tags}"
 }
 
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.security_group_name}"
   location            = "${var.location}"
-  resource_group_name = "${azurerm_resource_group.nsg.name}"
+  resource_group_name = "${var.resource_group_name}"
   tags                = "${var.tags}"
 }
 
@@ -21,12 +23,12 @@ resource "azurerm_network_security_rule" "predefined_rules" {
   direction                   = "${element(var.rules["${lookup(var.predefined_rules[count.index], "name")}"], 0)}"
   access                      = "${element(var.rules["${lookup(var.predefined_rules[count.index], "name")}"], 1)}"
   protocol                    = "${element(var.rules["${lookup(var.predefined_rules[count.index], "name")}"], 2)}"
-  source_port_ranges          = "${split(",", replace(  "${lookup(var.predefined_rules[count.index], "source_port_range", "*" )}"  ,  "*" , "0-65535" ) )}"
+  source_port_ranges          = "${split(",", replace("${lookup(var.predefined_rules[count.index], "source_port_range", "*" )}", "*", "0-65535"))}"
   destination_port_range      = "${element(var.rules["${lookup(var.predefined_rules[count.index], "name")}"], 4)}"
   description                 = "${element(var.rules["${lookup(var.predefined_rules[count.index], "name")}"], 5)}"
-  source_address_prefix       = "${join(",", var.source_address_prefix)}"
-  destination_address_prefix  = "${join(",", var.destination_address_prefix)}"
-  resource_group_name         = "${azurerm_resource_group.nsg.name}"
+  source_address_prefix       = "${lookup(var.predefined_rules[count.index], "source_address_prefix", "*")}"
+  destination_address_prefix  = "${lookup(var.predefined_rules[count.index], "destination_address_prefix", "*")}"
+  resource_group_name         = "${var.resource_group_name}"
   network_security_group_name = "${azurerm_network_security_group.nsg.name}"
 }
 
@@ -35,17 +37,17 @@ resource "azurerm_network_security_rule" "predefined_rules" {
 #############################
 
 resource "azurerm_network_security_rule" "custom_rules" {
-  count                       = "${length(var.custom_rules)}"
-  name                        = "${lookup(var.custom_rules[count.index], "name", "default_rule_name")}"
-  priority                    = "${lookup(var.custom_rules[count.index], "priority")}"
-  direction                   = "${lookup(var.custom_rules[count.index], "direction", "Any")}"
-  access                      = "${lookup(var.custom_rules[count.index], "access", "Allow")}"
-  protocol                    = "${lookup(var.custom_rules[count.index], "protocol", "*")}"
-  source_port_ranges          = "${split(",", replace(  "${lookup(var.custom_rules[count.index], "source_port_range", "*" )}"  ,  "*" , "0-65535" ) )}"
-  destination_port_ranges     = "${split(",", replace(  "${lookup(var.custom_rules[count.index], "destination_port_range", "*" )}"  ,  "*" , "0-65535" ) )}"
-  source_address_prefix       = "${lookup(var.custom_rules[count.index], "source_address_prefix", "*")}"
-  destination_address_prefix  = "${lookup(var.custom_rules[count.index], "destination_address_prefix", "*")}"
-  description                 = "${lookup(var.custom_rules[count.index], "description", "Security rule for ${lookup(var.custom_rules[count.index], "name", "default_rule_name")}")}"
-  resource_group_name         = "${azurerm_resource_group.nsg.name}"
-  network_security_group_name = "${azurerm_network_security_group.nsg.name}"
+  count                        = "${length(var.custom_rules)}"
+  name                         = "${lookup(var.custom_rules[count.index], "name", "default_rule_name")}"
+  priority                     = "${lookup(var.custom_rules[count.index], "priority")}"
+  direction                    = "${lookup(var.custom_rules[count.index], "direction", "Any")}"
+  access                       = "${lookup(var.custom_rules[count.index], "access", "Allow")}"
+  protocol                     = "${lookup(var.custom_rules[count.index], "protocol", "*")}"
+  source_port_ranges           = "${split(",", replace("${lookup(var.custom_rules[count.index], "source_port_range", "*")}", "*", "0-65535"))}"
+  destination_port_ranges      = "${split(",", replace("${lookup(var.custom_rules[count.index], "destination_port_range", "*")}", "*","0-65535"))}"
+  source_address_prefixes      = "${split(",",lookup(var.custom_rules[count.index], "source_address_prefix", "*"))}"
+  destination_address_prefixes = "${split(",",lookup(var.custom_rules[count.index], "destination_address_prefix", "*"))}"
+  description                  = "${lookup(var.custom_rules[count.index], "description", "Security rule for ${lookup(var.custom_rules[count.index], "name", "default_rule_name")}")}"
+  resource_group_name          = "${var.resource_group_name}"
+  network_security_group_name  = "${azurerm_network_security_group.nsg.name}"
 }

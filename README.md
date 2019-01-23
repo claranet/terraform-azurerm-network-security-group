@@ -11,6 +11,52 @@ NOTE: We are working on adding the support for applying a NSG to a network inter
 
 This module includes a a set of pre-defined rules for commonly used protocols (for example HTTP or ActiveDirectory) that can be used directly in their corresponding modules or as independent rules.
 
+## Need a Resource Group
+You can create the attached resource_group using `create_rg` boolean:
+```hcl
+module "network-security-group" {
+    source                     = "Azure/network-security-group/azurerm"
+    resource_group_name        = "nsg-resource-group"
+    location                   = "westus"
+    create_rg                  = true
+    security_group_name        = "nsg"
+    predefined_rules           = [
+      {
+        name                   = "SSH"
+        priority               = "500"
+        source_address_prefix  = "10.0.3.0/24"
+      },
+      {
+        name                   = "LDAP"
+        source_port_range      = "1024-1026"
+      }
+    ]
+```
+
+## Predefined or Custom rules
+
+In Predefined rules you can only define single `source_address_prefix` and `destination_address_prefix`.
+
+**Accepted values**: 
+- CIDR 
+- source IP range 
+- "\*" to match any IP
+- Tags such as ‘VirtualNetwork’, ‘AzureLoadBalancer’ and ‘Internet’
+
+**Rejected values**:
+- "10.1.1.0/24,10.1.2.0/24"
+
+In Custom rules you can specify multiple `source_address_prefix` and `destination_address_prefix` using string:
+
+**Accepted values**:
+- "10.1.1.0/24,10.1.2.0/24"
+- "10.1.1.0/24"
+
+**Rejected values**:
+- "\*"
+- Tags such as ‘VirtualNetwork’, ‘AzureLoadBalancer’ and ‘Internet’ are not accepted.
+
+
 ## Usage with the generic module
 
 The following example demonstrate how to use the network-security-group module with a combination of predefined and custom rules.
@@ -25,7 +71,7 @@ module "network-security-group" {
       {
         name                   = "SSH"
         priority               = "500"
-        source_address_prefix  = ["10.0.3.0/24"]
+        source_address_prefix  = "10.0.3.0/24"
       },
       {
         name                   = "LDAP"
@@ -34,13 +80,15 @@ module "network-security-group" {
     ]
     custom_rules               = [
       {
-        name                   = "myhttp"
-        priority               = "200"
-        direction              = "Inbound"
-        access                 = "Allow"
-        protocol               = "tcp"
-        destination_port_range = "8080"
-        description            = "description-myhttp"
+        name                       = "myhttp"
+        priority                   = "200"
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "tcp"
+        destination_port_range     = "8080"
+        source_address_prefix      = "10.0.3.0/24,192.168.1.0/24"
+        destination_address_prefix = "192.168.0.0/24,10.0.1.0/24"
+        description                = "description-myhttp"
       }
     ]
     tags                       = {
@@ -68,7 +116,7 @@ module "network-security-group" {
         access                 = "Allow"
         protocol               = "tcp"
         destination_port_range = "22"
-        source_address_prefix  = ["VirtualNetwork"]
+        source_address_prefix  = "192.168.1.0/24,10.0.0.0/24"
         description            = "ssh-for-vm-management"
       }
     ]
